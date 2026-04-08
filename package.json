@@ -9,7 +9,8 @@
     "server"
   ],
   "scripts": {
-    "dev": "npm --prefix client run dev",
+    "front": "npm --prefix client run dev",
+    "back": "npm --prefix server run dev",
     "build": "npm --prefix client run build",
     "start": "npm --prefix client run start",
     "lint": "npm --prefix client run lint"

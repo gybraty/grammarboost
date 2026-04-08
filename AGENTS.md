@@ -1,5 +1,5 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+## Rules for all Agents working on this codebase
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+- Always add and update **test** when functionalities change.
+- Always update **JSDoc/@openapi comments** on endpoints when API changes.
+- Always keep **definitions/schemas in `server/config/swagger.js`** when models and contracts change.

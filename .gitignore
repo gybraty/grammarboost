@@ -6,6 +6,7 @@ node_modules/
 out/
 dist/
 build/
+.idea/
 
 # caches
 .turbo/
@@ -14,6 +15,7 @@ build/
 # env files
 .env
 .env.*
+!.env.example
 
 # logs
 npm-debug.log*
