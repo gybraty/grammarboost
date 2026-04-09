@@ -1,10 +1,13 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/router"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
@@ -12,37 +15,87 @@ import {
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { GalleryVerticalEndIcon } from "lucide-react"
+import { api, getApiErrorMessage } from "@/lib/api"
 
 export function LoginForm({
   className,
   ...props
 }) {
+  const router = useRouter()
+  const [formData, setFormData] = useState({ email: "", password: "" })
+  const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleChange = (field) => (event) => {
+    setFormData((prev) => ({ ...prev, [field]: event.target.value }))
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setError("")
+    setIsSubmitting(true)
+    try {
+      const response = await api.post("/api/auth/login", formData)
+      const user = response.data?.data
+      if (user?.role === "admin") {
+        router.push("/admin")
+      } else {
+        router.push("/")
+      }
+    } catch (err) {
+      setError(getApiErrorMessage(err))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <form>
+      <form onSubmit={handleSubmit}>
         <FieldGroup>
           <div className="flex flex-col items-center gap-2 text-center">
             <a href="#" className="flex flex-col items-center gap-2 font-medium">
               <div className="flex size-8 items-center justify-center rounded-md">
                 <GalleryVerticalEndIcon className="size-6" />
               </div>
-              <span className="sr-only">Acme Inc.</span>
+              <span className="sr-only">GrammarBoost</span>
             </a>
-            <h1 className="text-xl font-bold">Welcome to Acme Inc.</h1>
+            <h1 className="text-xl font-bold">Welcome to GrammarBoost</h1>
             <FieldDescription>
               Don&apos;t have an account? <Link href="/auth/signup">Register</Link>
             </FieldDescription>
           </div>
+          {error && (
+            <Field>
+              <FieldError>{error}</FieldError>
+            </Field>
+          )}
           <Field>
             <FieldLabel htmlFor="email">Email</FieldLabel>
-            <Input id="email" type="email" placeholder="m@example.com" required />
+            <Input
+              id="email"
+              type="email"
+              placeholder="m@example.com"
+              value={formData.email}
+              onChange={handleChange("email")}
+              required
+            />
           </Field>
           <Field>
             <FieldLabel htmlFor="password">Password</FieldLabel>
-            <Input id="password" type="password" placeholder="••••••••" required />
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={handleChange("password")}
+              required
+            />
           </Field>
           <Field>
-            <Button type="submit">Login</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Signing in..." : "Login"}
+            </Button>
           </Field>
           <FieldSeparator>Or</FieldSeparator>
           <Field className="grid gap-4 sm:grid-cols-2">

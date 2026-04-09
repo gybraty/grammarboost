@@ -35,63 +35,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search } from "lucide-react"
-
-const lessons = [
-  {
-    id: "1",
-    title: "Articles and Determiners",
-    level: "A2",
-    status: "Published",
-    tags: ["articles", "nouns"],
-    updatedAt: "2026-04-08",
-  },
-  {
-    id: "2",
-    title: "Present Simple Basics",
-    level: "A1",
-    status: "Draft",
-    tags: ["verbs"],
-    updatedAt: "2026-04-07",
-  },
-  {
-    id: "3",
-    title: "Passive Voice Essentials",
-    level: "B1",
-    status: "In Review",
-    tags: ["voice", "verbs"],
-    updatedAt: "2026-04-05",
-  },
-  {
-    id: "4",
-    title: "Conditionals Type 2",
-    level: "B2",
-    status: "Published",
-    tags: ["conditionals"],
-    updatedAt: "2026-04-03",
-  },
-]
+import { Pencil, Search } from "lucide-react"
+import useSWR from "swr"
+import { api, getApiErrorMessage } from "@/lib/api"
+import { buildQueryString } from "@/lib/query"
 
 const levelOptions = ["All levels", "A1", "A2", "B1", "B2", "C1"]
-const statusOptions = ["All statuses", "Published", "Draft", "In Review"]
+const statusOptions = ["All statuses", "Published", "Draft"]
+const fetcher = (url) => api.get(url).then((res) => res.data.data)
 
 export default function AdminLessonsPage() {
   const [search, setSearch] = useState("")
   const [levelFilter, setLevelFilter] = useState("All levels")
   const [statusFilter, setStatusFilter] = useState("All statuses")
+  const [tagFilter, setTagFilter] = useState("All tags")
+
+  const { data: tags = [] } = useSWR("/api/tags", fetcher)
+
+  const lessonsQuery = buildQueryString({
+    level: levelFilter !== "All levels" ? levelFilter : undefined,
+    search: search || undefined,
+    tag: tagFilter !== "All tags" ? tagFilter : undefined,
+    includeUnpublished: true,
+  })
+
+  const {
+    data: lessons = [],
+    error,
+    isLoading,
+  } = useSWR(`/api/lessons${lessonsQuery}`, fetcher)
 
   const filteredLessons = useMemo(() => {
+    if (!lessons) return []
     return lessons.filter((lesson) => {
-      const matchesSearch =
-        lesson.title.toLowerCase().includes(search.toLowerCase()) ||
-        lesson.tags.some((tag) => tag.includes(search.toLowerCase()))
-      const matchesLevel =
-        levelFilter === "All levels" || lesson.level === levelFilter
       const matchesStatus =
-        statusFilter === "All statuses" || lesson.status === statusFilter
-      return matchesSearch && matchesLevel && matchesStatus
+        statusFilter === "All statuses" ||
+        (statusFilter === "Published" ? lesson.isPublished : !lesson.isPublished)
+      return matchesStatus
     })
-  }, [search, levelFilter, statusFilter])
+  }, [lessons, statusFilter])
 
   return (
     <AdminLayout
@@ -115,7 +97,7 @@ export default function AdminLessonsPage() {
               <div className="flex w-full max-w-md items-center gap-2 rounded-lg border bg-background px-2 py-1.5">
                 <Search className="size-4 text-muted-foreground" />
                 <Input
-                  className="border-0 focus-visible:ring-0"
+                  className="border-0 bg-background focus-visible:ring-0"
                   placeholder="Search lessons or tags..."
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
@@ -126,10 +108,23 @@ export default function AdminLessonsPage() {
                   <SelectTrigger className="w-36">
                     <SelectValue placeholder="All levels" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" align="start">
                     {levelOptions.map((level) => (
                       <SelectItem key={level} value={level}>
                         {level}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={tagFilter} onValueChange={setTagFilter}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue placeholder="All tags" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" align="start">
+                    <SelectItem value="All tags">All tags</SelectItem>
+                    {tags.map((tag) => (
+                      <SelectItem key={tag._id} value={tag.slug}>
+                        {tag.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -138,7 +133,7 @@ export default function AdminLessonsPage() {
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" align="start">
                     {statusOptions.map((status) => (
                       <SelectItem key={status} value={status}>
                         {status}
@@ -149,7 +144,15 @@ export default function AdminLessonsPage() {
               </div>
             </div>
             <Separator />
-            {filteredLessons.length === 0 ? (
+            {error ? (
+              <div className="rounded-lg border border-dashed p-6 text-sm text-destructive">
+                {getApiErrorMessage(error)}
+              </div>
+            ) : isLoading ? (
+              <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                Loading lessons...
+              </div>
+            ) : filteredLessons.length === 0 ? (
               <Empty className="border border-dashed">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">📘</EmptyMedia>
@@ -177,38 +180,39 @@ export default function AdminLessonsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLessons.map((lesson) => (
-                    <TableRow key={lesson.id}>
-                      <TableCell className="font-medium">{lesson.title}</TableCell>
-                      <TableCell>{lesson.level}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            lesson.status === "Published"
-                              ? "default"
-                              : lesson.status === "Draft"
-                              ? "secondary"
-                              : "outline"
-                          }>
-                          {lesson.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="flex flex-wrap gap-2">
-                        {lesson.tags.map((tag) => (
-                          <Badge key={tag} variant="outline">
-                            {tag}
+                    {filteredLessons.map((lesson) => (
+                      <TableRow key={lesson._id}>
+                        <TableCell className="font-medium">{lesson.title}</TableCell>
+                        <TableCell>{lesson.level}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              lesson.isPublished
+                                ? "default"
+                                : "secondary"
+                            }>
+                            {lesson.isPublished ? "Published" : "Draft"}
                           </Badge>
-                        ))}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {lesson.updatedAt}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/admin/lessons/${lesson.id}/edit`}>
-                            Edit
-                          </Link>
-                        </Button>
+                        </TableCell>
+                        <TableCell className="flex flex-wrap gap-2">
+                          {(lesson.tags || []).map((tag) => (
+                            <Badge key={tag._id || tag.name} variant="outline">
+                              {tag.name || tag}
+                            </Badge>
+                          ))}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {lesson.updatedAt
+                            ? new Date(lesson.updatedAt).toLocaleDateString()
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button asChild variant="ghost" size="icon">
+                            <Link href={`/admin/lessons/${lesson._id}/edit`}>
+                              <Pencil className="size-4" />
+                              <span className="sr-only">Edit lesson</span>
+                            </Link>
+                          </Button>
                       </TableCell>
                     </TableRow>
                   ))}

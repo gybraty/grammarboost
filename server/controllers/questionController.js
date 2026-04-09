@@ -2,6 +2,17 @@ const asyncHandler = require('../middleware/asyncHandler');
 const { ApiError } = require('../utils/ApiError');
 const { Lesson, Question } = require('../models');
 
+const listLessonQuestions = asyncHandler(async (req, res) => {
+  const { lessonId } = req.params;
+  const lesson = await Lesson.findById(lessonId);
+  if (!lesson) {
+    throw new ApiError(404, 'Lesson not found');
+  }
+
+  const questions = await Question.find({ lesson: lessonId }).sort({ order: 1 });
+  res.json({ data: questions });
+});
+
 const createQuestion = asyncHandler(async (req, res) => {
   const { lessonId } = req.params;
   const { type, prompt, choices, correctAnswers, explanation, order, difficulty } =
@@ -85,6 +96,7 @@ const deleteQuestion = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  listLessonQuestions,
   createQuestion,
   updateQuestion,
   deleteQuestion,

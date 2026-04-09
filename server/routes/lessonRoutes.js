@@ -242,6 +242,30 @@ router.post(
 /**
  * @openapi
  * /api/lessons/{lessonId}/questions:
+ *   get:
+ *     summary: List questions for a lesson
+ *     tags:
+ *       - Questions
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: lessonId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lesson questions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Question'
  *   post:
  *     summary: Create a question for a lesson
  *     tags:
@@ -288,6 +312,12 @@ router.post(
  *       201:
  *         description: Question created
  */
+router.get(
+  '/:lessonId/questions',
+  requireAuth,
+  requireAdmin,
+  questionController.listLessonQuestions
+);
 router.post(
   '/:lessonId/questions',
   requireAuth,

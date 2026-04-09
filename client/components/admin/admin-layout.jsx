@@ -1,3 +1,4 @@
+'use client'
 import Link from "next/link"
 import { useRouter } from "next/router"
 import {
@@ -16,7 +17,9 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { useAuth } from "@/hooks/use-auth"
 import {
   BookOpen,
   FileText,
@@ -55,6 +58,10 @@ const navItems = [
 
 export function AdminLayout({ title, description, actions, children }) {
   const router = useRouter()
+  const { user, isLoading } = useAuth()
+  const isAdmin = user?.role === "admin"
+
+  const accessState = isLoading ? "loading" : isAdmin ? "allowed" : "denied"
 
   return (
     <SidebarProvider>
@@ -115,7 +122,37 @@ export function AdminLayout({ title, description, actions, children }) {
           </div>
           {actions && <div className="flex items-center gap-2">{actions}</div>}
         </header>
-        <main className="flex-1 px-6 py-6">{children}</main>
+        <main className="flex-1 px-6 py-6">
+          {accessState === "loading" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Checking access…</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                Verifying your account role.
+              </CardContent>
+            </Card>
+          ) : accessState === "denied" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Access denied</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+                <p>You need an admin account to access this area.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild>
+                    <Link href="/auth/login">Go to login</Link>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link href="/">Back to home</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            children
+          )}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   )

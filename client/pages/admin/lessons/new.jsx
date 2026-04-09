@@ -1,5 +1,8 @@
-import { useMemo, useState } from "react"
 import Link from "next/link"
+import { useMemo, useState } from "react"
+import { useRouter } from "next/router"
+import { useForm, Controller, useWatch } from "react-hook-form"
+import useSWR from "swr"
 import { AdminLayout } from "@/components/admin/admin-layout"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,30 +34,81 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { UploadCloud } from "lucide-react"
+import { api, getApiErrorMessage } from "@/lib/api"
+import { toast } from "sonner"
 
 const levelOptions = ["A1", "A2", "B1", "B2", "C1"]
+const fetcher = (url) => api.get(url).then((res) => res.data.data)
+
+const defaultValues = {
+  title: "",
+  slug: "",
+  level: "A1",
+  summary: "",
+  content: "",
+  tags: [],
+  isPublished: false,
+}
 
 export default function CreateLessonPage() {
-  const [tagInput, setTagInput] = useState("")
-  const [tags, setTags] = useState(["articles", "sentence-structure"])
-  const [level, setLevel] = useState("A2")
-  const [published, setPublished] = useState(false)
+  const router = useRouter()
+  const [tagQuery, setTagQuery] = useState("")
 
-  const filteredTags = useMemo(
-    () => tags.filter((tag) => tag.includes(tagInput.toLowerCase())),
-    [tags, tagInput]
-  )
+  const {
+    data: tags = [],
+    error: tagsError,
+    isLoading: tagsLoading,
+  } = useSWR("/api/tags", fetcher)
 
-  const handleTagKeyDown = (event) => {
-    if (event.key === "Enter" && tagInput.trim()) {
-      event.preventDefault()
-      const nextTag = tagInput.trim().toLowerCase().replace(/\s+/g, "-")
-      if (!tags.includes(nextTag)) {
-        setTags((prev) => [...prev, nextTag])
-      }
-      setTagInput("")
-    }
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm({ defaultValues })
+
+  const selectedTags = useWatch({ control, name: "tags" }) || []
+  const isPublished = useWatch({ control, name: "isPublished" })
+  const watchedLevel = useWatch({ control, name: "level" })
+  const watchedSummary = useWatch({ control, name: "summary" })
+
+  const filteredTags = useMemo(() => {
+    const query = tagQuery.trim().toLowerCase()
+    if (!query) return tags
+    return tags.filter(
+      (tag) =>
+        tag.name.toLowerCase().includes(query) ||
+        tag.slug.toLowerCase().includes(query)
+    )
+  }, [tags, tagQuery])
+
+  const toggleTag = (tagId) => {
+    const next = selectedTags.includes(tagId)
+      ? selectedTags.filter((id) => id !== tagId)
+      : [...selectedTags, tagId]
+    setValue("tags", next, { shouldDirty: true })
   }
+
+  const submitLesson = (publish) =>
+    handleSubmit(async (values) => {
+      try {
+        const payload = {
+          title: values.title,
+          slug: values.slug || undefined,
+          level: values.level,
+          summary: values.summary || undefined,
+          content: values.content,
+          tags: values.tags,
+          isPublished: publish,
+        }
+        const response = await api.post("/api/lessons", payload)
+        toast.success("Lesson created")
+        router.push(`/admin/lessons/${response.data.data._id}/edit`)
+      } catch (err) {
+        toast.error(getApiErrorMessage(err))
+      }
+    })
 
   return (
     <AdminLayout
@@ -62,8 +116,10 @@ export default function CreateLessonPage() {
       description="Draft new grammar materials and publish when ready."
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="outline">Save draft</Button>
-          <Button>Publish lesson</Button>
+          <Button variant="outline" onClick={submitLesson(false)}>
+            Save draft
+          </Button>
+          <Button onClick={submitLesson(true)}>Publish lesson</Button>
         </div>
       }>
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
@@ -85,7 +141,17 @@ export default function CreateLessonPage() {
                     </FieldDescription>
                   </FieldLabel>
                   <FieldContent>
-                    <Input placeholder="Articles and determiners" />
+                    <Input
+                      placeholder="Articles and determiners"
+                      {...register("title", {
+                        required: "Title is required",
+                      })}
+                    />
+                    {errors.title && (
+                      <p className="text-xs text-destructive">
+                        {errors.title.message}
+                      </p>
+                    )}
                   </FieldContent>
                 </Field>
 
@@ -97,7 +163,7 @@ export default function CreateLessonPage() {
                     </FieldDescription>
                   </FieldLabel>
                   <FieldContent>
-                    <Input placeholder="articles-and-determiners" />
+                    <Input placeholder="articles-and-determiners" {...register("slug")} />
                   </FieldContent>
                 </Field>
 
@@ -110,18 +176,27 @@ export default function CreateLessonPage() {
                       </FieldDescription>
                     </FieldLabel>
                     <FieldContent>
-                      <Select value={level} onValueChange={setLevel}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {levelOptions.map((item) => (
-                            <SelectItem key={item} value={item}>
-                              {item}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Controller
+                        control={control}
+                        name="level"
+                        rules={{ required: "Level is required" }}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {levelOptions.map((item) => (
+                                <SelectItem key={item} value={item}>
+                                  {item}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
                     </FieldContent>
                   </Field>
                   <Field>
@@ -132,22 +207,28 @@ export default function CreateLessonPage() {
                       </FieldDescription>
                     </FieldLabel>
                     <FieldContent>
-                      <div className="flex items-center gap-3 rounded-lg border px-3 py-2">
-                        <Switch
-                          checked={published}
-                          onCheckedChange={setPublished}
-                        />
-                        <div>
-                          <p className="text-sm font-medium">
-                            {published ? "Published" : "Draft"}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {published
-                              ? "Visible in the learner catalog."
-                              : "Only visible to admins."}
-                          </p>
-                        </div>
-                      </div>
+                      <Controller
+                        control={control}
+                        name="isPublished"
+                        render={({ field }) => (
+                          <div className="flex items-center gap-3 rounded-lg border px-3 py-2">
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                            <div>
+                              <p className="text-sm font-medium">
+                                {field.value ? "Published" : "Draft"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {field.value
+                                  ? "Visible in the learner catalog."
+                                  : "Only visible to admins."}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      />
                     </FieldContent>
                   </Field>
                 </div>
@@ -163,6 +244,7 @@ export default function CreateLessonPage() {
                     <Textarea
                       placeholder="Explain the grammar concept and why it matters."
                       rows={4}
+                      {...register("summary")}
                     />
                   </FieldContent>
                 </Field>
@@ -176,17 +258,35 @@ export default function CreateLessonPage() {
                   </FieldLabel>
                   <FieldContent>
                     <Input
-                      placeholder="Type a tag and press Enter"
-                      value={tagInput}
-                      onChange={(event) => setTagInput(event.target.value)}
-                      onKeyDown={handleTagKeyDown}
+                      placeholder="Filter tags..."
+                      value={tagQuery}
+                      onChange={(event) => setTagQuery(event.target.value)}
                     />
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {filteredTags.map((tag) => (
-                        <Badge key={tag} variant="secondary">
-                          {tag}
+                      {tagsLoading ? (
+                        <Badge variant="outline">Loading tags...</Badge>
+                      ) : tagsError ? (
+                        <Badge variant="destructive">
+                          {getApiErrorMessage(tagsError)}
                         </Badge>
-                      ))}
+                      ) : filteredTags.length === 0 ? (
+                        <Badge variant="outline">No tags found</Badge>
+                      ) : (
+                        filteredTags.map((tag) => (
+                          <Button
+                            key={tag._id}
+                            type="button"
+                            variant={
+                              selectedTags.includes(tag._id)
+                                ? "default"
+                                : "outline"
+                            }
+                            size="sm"
+                            onClick={() => toggleTag(tag._id)}>
+                            {tag.name}
+                          </Button>
+                        ))
+                      )}
                     </div>
                   </FieldContent>
                 </Field>
@@ -211,7 +311,15 @@ export default function CreateLessonPage() {
                   <Textarea
                     rows={14}
                     placeholder="## Rule\nExplain the grammar rule...\n\n### Examples\n- ..."
+                    {...register("content", {
+                      required: "Content is required",
+                    })}
                   />
+                  {errors.content && (
+                    <p className="mt-2 text-xs text-destructive">
+                      {errors.content.message}
+                    </p>
+                  )}
                 </TabsContent>
                 <TabsContent value="preview" className="mt-4">
                   <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
@@ -236,25 +344,11 @@ export default function CreateLessonPage() {
                 <UploadCloud className="size-6 text-muted-foreground" />
                 <div className="text-sm font-medium">Upload lesson media</div>
                 <p className="text-xs text-muted-foreground">
-                  PNG or JPG up to 5MB.
+                  Save the lesson before uploading media.
                 </p>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" disabled>
                   Choose file
                 </Button>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                  <span>cover-image.png</span>
-                  <Button size="sm" variant="ghost">
-                    Replace
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                  <span>examples-diagram.png</span>
-                  <Button size="sm" variant="ghost">
-                    Remove
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -267,12 +361,14 @@ export default function CreateLessonPage() {
             <CardContent className="space-y-3 text-sm">
               <div className="flex items-center justify-between">
                 <span>CEFR level assigned</span>
-                <Badge variant="outline">A2</Badge>
+                <Badge variant="outline">{watchedLevel}</Badge>
               </div>
               <Separator />
               <div className="flex items-center justify-between">
-                <span>Examples included</span>
-                <Badge variant="secondary">Pending</Badge>
+                <span>Summary provided</span>
+                <Badge variant={watchedSummary ? "outline" : "secondary"}>
+                  {watchedSummary ? "Complete" : "Pending"}
+                </Badge>
               </div>
               <Separator />
               <div className="flex items-center justify-between">
@@ -281,8 +377,10 @@ export default function CreateLessonPage() {
               </div>
               <Separator />
               <div className="flex items-center justify-between">
-                <span>Media attached</span>
-                <Badge variant="secondary">2 files</Badge>
+                <span>Publishing status</span>
+                <Badge variant="outline">
+                  {isPublished ? "Published" : "Draft"}
+                </Badge>
               </div>
               <Button variant="outline" className="w-full" asChild>
                 <Link href="/admin/questions">Add quiz questions</Link>
@@ -291,6 +389,11 @@ export default function CreateLessonPage() {
           </Card>
         </div>
       </div>
+      {isSubmitting && (
+        <div className="mt-4 text-sm text-muted-foreground">
+          Saving lesson...
+        </div>
+      )}
     </AdminLayout>
   )
 }
