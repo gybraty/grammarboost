@@ -9,7 +9,7 @@ const { requireAdmin } = require('../middleware/admin');
 const router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024 },
 });
 
 /**
@@ -70,7 +70,7 @@ router.get('/', optionalAuth, lessonController.listLessons);
  *             required:
  *               - level
  *               - title
- *               - content
+ *               - contentLink
  *             properties:
  *               level:
  *                 type: string
@@ -80,7 +80,9 @@ router.get('/', optionalAuth, lessonController.listLessons);
  *                 type: string
  *               summary:
  *                 type: string
- *               content:
+ *               contentLink:
+ *                 type: string
+ *               contentKey:
  *                 type: string
  *               tags:
  *                 type: array
@@ -100,6 +102,116 @@ router.get('/', optionalAuth, lessonController.listLessons);
  *                   $ref: '#/components/schemas/Lesson'
  */
 router.post('/', requireAuth, requireAdmin, lessonController.createLesson);
+
+/**
+ * @openapi
+ * /api/lessons/content/upload:
+ *   post:
+ *     summary: Upload lesson content PDF
+ *     tags:
+ *       - Lessons
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Content uploaded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     contentLink:
+ *                       type: string
+ *                     contentKey:
+ *                       type: string
+ *                     bucket:
+ *                       type: string
+ */
+router.post(
+  '/content/upload',
+  requireAuth,
+  requireAdmin,
+  upload.single('file'),
+  lessonController.uploadLessonContent
+);
+
+/**
+ * @openapi
+ * /api/lessons/{lessonId}/content:
+ *   post:
+ *     summary: Replace lesson content PDF
+ *     tags:
+ *       - Lessons
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: lessonId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Lesson updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   $ref: '#/components/schemas/Lesson'
+ *   delete:
+ *     summary: Delete lesson content PDF
+ *     tags:
+ *       - Lessons
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: lessonId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lesson updated
+ */
+router.post(
+  '/:lessonId/content',
+  requireAuth,
+  requireAdmin,
+  upload.single('file'),
+  lessonController.uploadLessonContentForLesson
+);
+router.delete(
+  '/:lessonId/content',
+  requireAuth,
+  requireAdmin,
+  lessonController.deleteLessonContent
+);
 
 /**
  * @openapi
@@ -158,7 +270,9 @@ router.get('/:lessonId', optionalAuth, lessonController.getLesson);
  *                 type: string
  *               summary:
  *                 type: string
- *               content:
+ *               contentLink:
+ *                 type: string
+ *               contentKey:
  *                 type: string
  *               tags:
  *                 type: array
@@ -192,52 +306,6 @@ router.put('/:lessonId', requireAuth, requireAdmin, lessonController.updateLesso
  *         description: Lesson deleted
  */
 router.delete('/:lessonId', requireAuth, requireAdmin, lessonController.deleteLesson);
-
-/**
- * @openapi
- * /api/lessons/{lessonId}/media:
- *   post:
- *     summary: Upload lesson media
- *     tags:
- *       - Lessons
- *     security:
- *       - cookieAuth: []
- *     parameters:
- *       - in: path
- *         name: lessonId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *               alt:
- *                 type: string
- *     responses:
- *       201:
- *         description: Media uploaded
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   $ref: '#/components/schemas/LessonMedia'
- */
-router.post(
-  '/:lessonId/media',
-  requireAuth,
-  requireAdmin,
-  upload.single('file'),
-  lessonController.uploadLessonMedia
-);
 
 /**
  * @openapi

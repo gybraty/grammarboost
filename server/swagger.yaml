@@ -1,0 +1,822 @@
+openapi: 3.0.0
+info:
+  title: GrammarBoost API
+  version: 1.0.0
+servers:
+  - url: /
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: accessToken
+    refreshCookieAuth:
+      type: apiKey
+      in: cookie
+      name: refreshToken
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          example: learner
+        profile:
+          type: object
+          properties:
+            displayName:
+              type: string
+            level:
+              type: string
+              example: A1
+            goals:
+              type: string
+            avatarUrl:
+              type: string
+    Tag:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+    Lesson:
+      type: object
+      properties:
+        id:
+          type: string
+        level:
+          type: string
+          example: A1
+        title:
+          type: string
+        slug:
+          type: string
+        summary:
+          type: string
+        contentLink:
+          type: string
+        contentKey:
+          type: string
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+        isPublished:
+          type: boolean
+    Question:
+      type: object
+      properties:
+        id:
+          type: string
+        lesson:
+          type: string
+        type:
+          type: string
+          example: multiple-choice
+        prompt:
+          type: string
+        choices:
+          type: array
+          items:
+            type: string
+        correctAnswers:
+          type: array
+          items:
+            type: string
+        explanation:
+          type: string
+        order:
+          type: number
+        difficulty:
+          type: number
+    QuizQuestion:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        prompt:
+          type: string
+        choices:
+          type: array
+          items:
+            type: string
+        order:
+          type: number
+        difficulty:
+          type: number
+    QuizResult:
+      type: object
+      properties:
+        attemptId:
+          type: string
+        score:
+          type: number
+        maxScore:
+          type: number
+        percentage:
+          type: number
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              questionId:
+                type: string
+              userAnswer:
+                type: string
+              isCorrect:
+                type: boolean
+              correctAnswers:
+                type: array
+                items:
+                  type: string
+              explanation:
+                type: string
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: string
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a user account
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                displayName:
+                  type: string
+                level:
+                  type: string
+                  example: A1
+                goals:
+                  type: string
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/login:
+    post:
+      summary: Login with email and password
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/refresh:
+    post:
+      summary: Refresh access token
+      tags:
+        - Auth
+      security:
+        - refreshCookieAuth: []
+      responses:
+        '200':
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/logout:
+    post:
+      summary: Logout and revoke refresh token
+      tags:
+        - Auth
+      security:
+        - refreshCookieAuth: []
+      responses:
+        '204':
+          description: Logged out
+  /api/auth/me:
+    get:
+      summary: Get current user
+      tags:
+        - Auth
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/lessons:
+    get:
+      summary: List lessons
+      tags:
+        - Lessons
+      parameters:
+        - in: query
+          name: level
+          schema:
+            type: string
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: tag
+          schema:
+            type: string
+          description: Tag id or slug
+        - in: query
+          name: includeUnpublished
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lesson list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Lesson'
+    post:
+      summary: Create a lesson
+      tags:
+        - Lessons
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - level
+                - title
+                - contentLink
+              properties:
+                level:
+                  type: string
+                title:
+                  type: string
+                slug:
+                  type: string
+                summary:
+                  type: string
+                contentLink:
+                  type: string
+                contentKey:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                isPublished:
+                  type: boolean
+      responses:
+        '201':
+          description: Lesson created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Lesson'
+  /api/lessons/{lessonId}:
+    get:
+      summary: Get a lesson by ID or slug
+      tags:
+        - Lessons
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lesson details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Lesson'
+        '404':
+          description: Lesson not found
+    put:
+      summary: Update a lesson
+      tags:
+        - Lessons
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                level:
+                  type: string
+                title:
+                  type: string
+                slug:
+                  type: string
+                summary:
+                  type: string
+                contentLink:
+                  type: string
+                contentKey:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                isPublished:
+                  type: boolean
+      responses:
+        '200':
+          description: Lesson updated
+    delete:
+      summary: Delete a lesson
+      tags:
+        - Lessons
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Lesson deleted
+  /api/lessons/{lessonId}/content:
+    post:
+      summary: Replace lesson content PDF
+      tags:
+        - Lessons
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Lesson updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Lesson'
+    delete:
+      summary: Delete lesson content PDF
+      tags:
+        - Lessons
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lesson updated
+  /api/lessons/content/upload:
+    post:
+      summary: Upload lesson content PDF
+      tags:
+        - Lessons
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Content uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      contentLink:
+                        type: string
+                      contentKey:
+                        type: string
+                      bucket:
+                        type: string
+  /api/lessons/{lessonId}/questions:
+    post:
+      summary: Create a question for a lesson
+      tags:
+        - Questions
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+                - prompt
+                - correctAnswers
+                - explanation
+              properties:
+                type:
+                  type: string
+                prompt:
+                  type: string
+                choices:
+                  type: array
+                  items:
+                    type: string
+                correctAnswers:
+                  type: array
+                  items:
+                    type: string
+                explanation:
+                  type: string
+                order:
+                  type: number
+                difficulty:
+                  type: number
+      responses:
+        '201':
+          description: Question created
+  /api/lessons/{lessonId}/quiz:
+    get:
+      summary: Get quiz questions for a lesson
+      tags:
+        - Quizzes
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Quiz questions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QuizQuestion'
+    post:
+      summary: Submit quiz answers
+      tags:
+        - Quizzes
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - answers
+              properties:
+                answers:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - questionId
+                      - answer
+                    properties:
+                      questionId:
+                        type: string
+                      answer:
+                        type: string
+      responses:
+        '200':
+          description: Quiz results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/QuizResult'
+  /api/progress:
+    get:
+      summary: Get user lesson progress
+      tags:
+        - Progress
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Progress list
+  /api/questions/{questionId}:
+    put:
+      summary: Update a question
+      tags:
+        - Questions
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: questionId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                prompt:
+                  type: string
+                choices:
+                  type: array
+                  items:
+                    type: string
+                correctAnswers:
+                  type: array
+                  items:
+                    type: string
+                explanation:
+                  type: string
+                order:
+                  type: number
+                difficulty:
+                  type: number
+      responses:
+        '200':
+          description: Question updated
+    delete:
+      summary: Delete a question
+      tags:
+        - Questions
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: questionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Question deleted
+  /api/tags:
+    get:
+      summary: List tags
+      tags:
+        - Tags
+      responses:
+        '200':
+          description: Tag list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
+    post:
+      summary: Create a tag
+      tags:
+        - Tags
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Tag created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Tag'
+  /api/tags/{tagId}:
+    put:
+      summary: Update a tag
+      tags:
+        - Tags
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: tagId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Tag updated
+    delete:
+      summary: Delete a tag
+      tags:
+        - Tags
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: tagId
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Tag deleted
+  /api/health:
+    get:
+      summary: Health check
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+  /api/docs-yaml:
+    get:
+      summary: Get Swagger schema in YAML format
+      tags:
+        - Docs
+      responses:
+        '200':
+          description: YAML schema
+tags: []

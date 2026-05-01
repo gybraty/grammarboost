@@ -566,12 +566,20 @@ export default function QuestionsManagementPage() {
                     )}
                   />
                 </div>
-                <Button
-                  className="w-full"
-                  disabled={isSubmitting}
-                  onClick={handleSubmit(onSubmit)}>
-                  {isSubmitting ? "Saving..." : "Save question"}
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    variant="outline"
+                    disabled={isSubmitting}
+                    onClick={resetForm}>
+                    {editingQuestion ? "Cancel edit" : "Clear form"}
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    disabled={isSubmitting}
+                    onClick={handleSubmit(onSubmit)}>
+                    {isSubmitting ? "Saving..." : "Save question"}
+                  </Button>
+                </div>
               </CardContent>
               </Card>
             </div>
@@ -700,12 +708,20 @@ export default function QuestionsManagementPage() {
                     </p>
                   )}
                 </div>
-                <Button
-                  className="w-full"
-                  disabled={isSubmitting}
-                  onClick={handleSubmit(onSubmit)}>
-                  {isSubmitting ? "Saving..." : "Save fill-in-blank"}
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    variant="outline"
+                    disabled={isSubmitting}
+                    onClick={resetForm}>
+                    {editingQuestion ? "Cancel edit" : "Clear form"}
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    disabled={isSubmitting}
+                    onClick={handleSubmit(onSubmit)}>
+                    {isSubmitting ? "Saving..." : "Save fill-in-blank"}
+                  </Button>
+                </div>
               </CardContent>
               </Card>
 

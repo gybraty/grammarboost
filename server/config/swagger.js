@@ -39,19 +39,6 @@ const definition = {
           },
         },
       },
-      LessonMedia: {
-        type: 'object',
-        properties: {
-          url: { type: 'string' },
-          publicId: { type: 'string' },
-          resourceType: { type: 'string' },
-          format: { type: 'string' },
-          width: { type: 'number' },
-          height: { type: 'number' },
-          bytes: { type: 'number' },
-          alt: { type: 'string' },
-        },
-      },
       Tag: {
         type: 'object',
         properties: {
@@ -69,11 +56,8 @@ const definition = {
           title: { type: 'string' },
           slug: { type: 'string' },
           summary: { type: 'string' },
-          content: { type: 'string' },
-          media: {
-            type: 'array',
-            items: { $ref: '#/components/schemas/LessonMedia' },
-          },
+          contentLink: { type: 'string' },
+          contentKey: { type: 'string' },
           tags: {
             type: 'array',
             items: { $ref: '#/components/schemas/Tag' },

@@ -4,24 +4,6 @@ const { Schema } = mongoose;
 
 const cefrLevels = ['A1', 'A2', 'B1', 'B2', 'C1'];
 
-const mediaSchema = new Schema(
-  {
-    url: { type: String, required: true, trim: true },
-    publicId: { type: String, required: true, trim: true },
-    resourceType: {
-      type: String,
-      enum: ['image', 'video', 'raw'],
-      default: 'image',
-    },
-    format: { type: String, trim: true },
-    width: { type: Number },
-    height: { type: Number },
-    bytes: { type: Number },
-    alt: { type: String, trim: true },
-  },
-  { _id: false }
-);
-
 const lessonSchema = new Schema(
   {
     level: {
@@ -46,11 +28,14 @@ const lessonSchema = new Schema(
       type: String,
       trim: true,
     },
-    content: {
+    contentLink: {
       type: String,
-      required: true,
+      trim: true,
     },
-    media: [mediaSchema],
+    contentKey: {
+      type: String,
+      trim: true,
+    },
     tags: [{ type: Schema.Types.ObjectId, ref: 'Tag' }],
     isPublished: {
       type: Boolean,

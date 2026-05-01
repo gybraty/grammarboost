@@ -3,7 +3,7 @@ const asyncHandler = require('../middleware/asyncHandler');
 const { ApiError } = require('../utils/ApiError');
 const { slugify } = require('../utils/slugify');
 const { Lesson, Tag } = require('../models');
-const { uploadBuffer } = require('../services/cloudinaryService');
+const { uploadPdfBuffer, deletePdfObject, getKeyFromPublicUrl } = require('../services/r2Service');
 
 const cefrLevels = ['A1', 'A2', 'B1', 'B2', 'C1'];
 
@@ -91,11 +91,28 @@ const resolveTags = async (tags) => {
   return tagDocs.map((tagDoc) => tagDoc._id);
 };
 
-const createLesson = asyncHandler(async (req, res) => {
-  const { level, title, slug, summary, content, tags, isPublished } = req.body;
+const validateContentLink = (contentLink, { allowEmpty = false } = {}) => {
+  if (!contentLink) {
+    if (allowEmpty) return;
+    throw new ApiError(400, 'Content link is required');
+  }
 
-  if (!level || !title || !content) {
-    throw new ApiError(400, 'Level, title, and content are required');
+  try {
+    const url = new URL(contentLink);
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+  } catch (err) {
+    throw new ApiError(400, 'Content link must be a valid URL');
+  }
+};
+
+const createLesson = asyncHandler(async (req, res) => {
+  const { level, title, slug, summary, contentLink, contentKey, tags, isPublished } =
+    req.body;
+
+  if (!level || !title || !contentLink) {
+    throw new ApiError(400, 'Level, title, and content link are required');
   }
 
   if (!cefrLevels.includes(level)) {
@@ -116,6 +133,8 @@ const createLesson = asyncHandler(async (req, res) => {
     finalSlug = `${finalSlug}-${Date.now()}`;
   }
 
+  validateContentLink(contentLink);
+
   const tagIds = await resolveTags(tags);
 
   const lesson = await Lesson.create({
@@ -123,7 +142,8 @@ const createLesson = asyncHandler(async (req, res) => {
     title,
     slug: finalSlug,
     summary,
-    content,
+    contentLink,
+    contentKey: contentKey || undefined,
     tags: tagIds,
     isPublished: isPublished !== undefined ? isPublished : true,
     createdBy: req.user.id,
@@ -140,12 +160,22 @@ const updateLesson = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Lesson not found');
   }
 
-  const updates = ['level', 'title', 'summary', 'content', 'isPublished'];
+  const previousContentLink = lesson.contentLink;
+
+  const updates = ['level', 'title', 'summary', 'contentLink', 'contentKey', 'isPublished'];
   updates.forEach((field) => {
     if (req.body[field] !== undefined) {
       lesson[field] = req.body[field];
     }
   });
+
+  if (req.body.contentLink === '') {
+    lesson.contentLink = null;
+  }
+
+  if (req.body.contentKey === '') {
+    lesson.contentKey = null;
+  }
 
   if (req.body.tags !== undefined) {
     if (req.body.tags && !Array.isArray(req.body.tags)) {
@@ -170,6 +200,18 @@ const updateLesson = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Invalid CEFR level');
   }
 
+  if (req.body.contentLink !== undefined) {
+    validateContentLink(req.body.contentLink, { allowEmpty: true });
+  }
+
+  if (
+    req.body.contentLink !== undefined &&
+    req.body.contentKey === undefined &&
+    req.body.contentLink !== previousContentLink
+  ) {
+    lesson.contentKey = null;
+  }
+
   lesson.updatedBy = req.user.id;
   await lesson.save();
   res.json({ data: lesson });
@@ -185,7 +227,29 @@ const deleteLesson = asyncHandler(async (req, res) => {
   res.status(204).send();
 });
 
-const uploadLessonMedia = asyncHandler(async (req, res) => {
+const uploadLessonContent = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ApiError(400, 'PDF file is required');
+  }
+
+  const isPdf =
+    req.file.mimetype === 'application/pdf' ||
+    req.file.originalname.toLowerCase().endsWith('.pdf');
+
+  if (!isPdf) {
+    throw new ApiError(400, 'Only PDF files are allowed');
+  }
+
+  const result = await uploadPdfBuffer({
+    buffer: req.file.buffer,
+    originalName: req.file.originalname,
+    contentType: req.file.mimetype,
+  });
+
+  res.status(201).json({ data: result });
+});
+
+const uploadLessonContentForLesson = asyncHandler(async (req, res) => {
   const { lessonId } = req.params;
   const lesson = await Lesson.findById(lessonId);
   if (!lesson) {
@@ -193,30 +257,57 @@ const uploadLessonMedia = asyncHandler(async (req, res) => {
   }
 
   if (!req.file) {
-    throw new ApiError(400, 'Media file is required');
+    throw new ApiError(400, 'PDF file is required');
   }
 
-  const result = await uploadBuffer(req.file.buffer, {
-    folder: 'grammarboost/lessons',
-    resource_type: 'image',
+  const isPdf =
+    req.file.mimetype === 'application/pdf' ||
+    req.file.originalname.toLowerCase().endsWith('.pdf');
+
+  if (!isPdf) {
+    throw new ApiError(400, 'Only PDF files are allowed');
+  }
+
+  const previousKey = lesson.contentKey || getKeyFromPublicUrl(lesson.contentLink);
+
+  const result = await uploadPdfBuffer({
+    buffer: req.file.buffer,
+    originalName: req.file.originalname,
+    contentType: req.file.mimetype,
   });
 
-  const mediaItem = {
-    url: result.secure_url,
-    publicId: result.public_id,
-    resourceType: result.resource_type,
-    format: result.format,
-    width: result.width,
-    height: result.height,
-    bytes: result.bytes,
-    alt: req.body.alt,
-  };
-
-  lesson.media.push(mediaItem);
+  lesson.contentLink = result.contentLink;
+  lesson.contentKey = result.contentKey;
   lesson.updatedBy = req.user.id;
   await lesson.save();
 
-  res.status(201).json({ data: mediaItem });
+  if (previousKey) {
+    await deletePdfObject(previousKey);
+  }
+
+  res.json({ data: lesson });
+});
+
+const deleteLessonContent = asyncHandler(async (req, res) => {
+  const { lessonId } = req.params;
+  const lesson = await Lesson.findById(lessonId);
+  if (!lesson) {
+    throw new ApiError(404, 'Lesson not found');
+  }
+
+  const contentKey = lesson.contentKey || getKeyFromPublicUrl(lesson.contentLink);
+  if (!contentKey) {
+    throw new ApiError(400, 'Lesson content is not managed by R2');
+  }
+
+  await deletePdfObject(contentKey);
+
+  lesson.contentLink = null;
+  lesson.contentKey = null;
+  lesson.updatedBy = req.user.id;
+  await lesson.save();
+
+  res.json({ data: lesson });
 });
 
 module.exports = {
@@ -225,5 +316,7 @@ module.exports = {
   createLesson,
   updateLesson,
   deleteLesson,
-  uploadLessonMedia,
+  uploadLessonContent,
+  uploadLessonContentForLesson,
+  deleteLessonContent,
 };

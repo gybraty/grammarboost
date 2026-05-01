@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/router"
 import { useForm, Controller, useWatch } from "react-hook-form"
 import useSWR from "swr"
@@ -31,7 +31,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { UploadCloud } from "lucide-react"
 import { api, getApiErrorMessage } from "@/lib/api"
@@ -45,7 +44,8 @@ const defaultValues = {
   slug: "",
   level: "A1",
   summary: "",
-  content: "",
+  contentLink: "",
+  contentKey: "",
   tags: [],
   isPublished: false,
 }
@@ -53,6 +53,10 @@ const defaultValues = {
 export default function CreateLessonPage() {
   const router = useRouter()
   const [tagQuery, setTagQuery] = useState("")
+  const [contentFile, setContentFile] = useState(null)
+  const [contentPreviewUrl, setContentPreviewUrl] = useState("")
+  const [contentUploading, setContentUploading] = useState(false)
+  const contentInputRef = useRef(null)
 
   const {
     data: tags = [],
@@ -72,6 +76,32 @@ export default function CreateLessonPage() {
   const isPublished = useWatch({ control, name: "isPublished" })
   const watchedLevel = useWatch({ control, name: "level" })
   const watchedSummary = useWatch({ control, name: "summary" })
+  const contentLinkValue = useWatch({ control, name: "contentLink" })
+  const isValidHttpUrl = (value) => {
+    if (!value) return false
+    try {
+      const url = new URL(value)
+      return ["http:", "https:"].includes(url.protocol)
+    } catch (err) {
+      return false
+    }
+  }
+
+  const isContentLinkValid = useMemo(
+    () => isValidHttpUrl(contentLinkValue),
+    [contentLinkValue]
+  )
+  const shouldShowPreview = Boolean(contentPreviewUrl || isContentLinkValid)
+
+  useEffect(() => {
+    if (!contentFile) {
+      setContentPreviewUrl("")
+      return undefined
+    }
+    const nextUrl = URL.createObjectURL(contentFile)
+    setContentPreviewUrl(nextUrl)
+    return () => URL.revokeObjectURL(nextUrl)
+  }, [contentFile])
 
   const filteredTags = useMemo(() => {
     const query = tagQuery.trim().toLowerCase()
@@ -98,7 +128,8 @@ export default function CreateLessonPage() {
           slug: values.slug || undefined,
           level: values.level,
           summary: values.summary || undefined,
-          content: values.content,
+          contentLink: values.contentLink,
+          contentKey: values.contentKey || undefined,
           tags: values.tags,
           isPublished: publish,
         }
@@ -109,6 +140,35 @@ export default function CreateLessonPage() {
         toast.error(getApiErrorMessage(err))
       }
     })
+
+  const handleContentUpload = async () => {
+    if (!contentFile) return
+    try {
+      setContentUploading(true)
+      const formData = new FormData()
+      formData.append("file", contentFile)
+      const response = await api.post("/api/lessons/content/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      setValue("contentLink", response.data.data.contentLink, { shouldDirty: true })
+      setValue("contentKey", response.data.data.contentKey, { shouldDirty: true })
+      toast.success("PDF uploaded")
+      setContentFile(null)
+    } catch (err) {
+      toast.error(getApiErrorMessage(err))
+    } finally {
+      setContentUploading(false)
+    }
+  }
+
+  const triggerContentPicker = () => {
+    contentInputRef.current?.click()
+  }
+
+  const clearContentSelection = () => {
+    setContentFile(null)
+    setContentPreviewUrl("")
+  }
 
   return (
     <AdminLayout
@@ -296,63 +356,95 @@ export default function CreateLessonPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Lesson content</CardTitle>
+              <CardTitle>Lesson content PDF</CardTitle>
               <CardDescription>
-                Write explanations and examples in Markdown format.
+                Upload a PDF handout or paste an existing link.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="write">
-                <TabsList variant="line">
-                  <TabsTrigger value="write">Write</TabsTrigger>
-                  <TabsTrigger value="preview">Preview</TabsTrigger>
-                </TabsList>
-                <TabsContent value="write" className="mt-4">
-                  <Textarea
-                    rows={14}
-                    placeholder="## Rule\nExplain the grammar rule...\n\n### Examples\n- ..."
-                    {...register("content", {
-                      required: "Content is required",
+            <CardContent className="space-y-4">
+              <Field>
+                <FieldLabel>
+                  <FieldTitle>Content link</FieldTitle>
+                  <FieldDescription>
+                    Link to the lesson PDF stored in Cloudflare R2.
+                  </FieldDescription>
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    placeholder="https://cdn.example.com/lessons/lesson.pdf"
+                    {...register("contentLink", {
+                      required: "Content link is required",
+                      validate: (value) =>
+                        isValidHttpUrl(value) || "Content link must be a valid URL",
                     })}
                   />
-                  {errors.content && (
+                  {errors.contentLink && (
                     <p className="mt-2 text-xs text-destructive">
-                      {errors.content.message}
+                      {errors.contentLink.message}
                     </p>
                   )}
-                </TabsContent>
-                <TabsContent value="preview" className="mt-4">
-                  <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-                    Preview will render markdown content here.
-                  </div>
-                </TabsContent>
-              </Tabs>
+                </FieldContent>
+              </Field>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={contentInputRef}
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(event) =>
+                    setContentFile(event.target.files?.[0] || null)
+                  }
+                />
+                <Button variant="outline" size="sm" onClick={triggerContentPicker}>
+                  <UploadCloud className="mr-2 size-4" />
+                  Choose PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleContentUpload}
+                  disabled={!contentFile || contentUploading}>
+                  {contentUploading ? "Uploading..." : "Upload PDF"}
+                </Button>
+                {contentFile && (
+                  <span className="text-xs text-muted-foreground">
+                    Selected: {contentFile.name}
+                  </span>
+                )}
+                {isContentLinkValid && (
+                  <Button variant="ghost" size="sm" asChild>
+                    <a href={contentLinkValue} target="_blank" rel="noreferrer">
+                      Open PDF
+                    </a>
+                  </Button>
+                )}
+                {contentFile && (
+                  <Button variant="ghost" size="sm" onClick={clearContentSelection}>
+                    Cancel
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">PDF up to 15MB.</p>
+
+              {shouldShowPreview ? (
+                <div className="rounded-lg border bg-muted/30 p-2">
+                  <iframe
+                    title="PDF preview"
+                    className="h-80 w-full rounded-md"
+                    src={contentPreviewUrl || contentLinkValue}
+                  />
+                </div>
+              ) : (
+                <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  PDF preview will appear when a valid link is available.
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
         <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Lesson media</CardTitle>
-              <CardDescription>
-                Add a header image or visual aids for learners.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 px-6 py-8 text-center">
-                <UploadCloud className="size-6 text-muted-foreground" />
-                <div className="text-sm font-medium">Upload lesson media</div>
-                <p className="text-xs text-muted-foreground">
-                  Save the lesson before uploading media.
-                </p>
-                <Button variant="outline" size="sm" disabled>
-                  Choose file
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader>
               <CardTitle>Review checklist</CardTitle>
