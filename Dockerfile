@@ -2,17 +2,11 @@ FROM node:22-slim AS builder
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
 
-RUN npm ci
-
-RUN LCSS_VER=$(node -p "require('./client/node_modules/lightningcss/package.json').version") && \
-    npm pack "lightningcss-linux-x64-gnu@${LCSS_VER}" --pack-destination /tmp && \
-    mkdir -p /app/client/node_modules/lightningcss-linux-x64-gnu && \
-    tar xzf "/tmp/lightningcss-linux-x64-gnu-${LCSS_VER}.tgz" --strip-components=1 \
-        -C /app/client/node_modules/lightningcss-linux-x64-gnu
+RUN npm install
 
 COPY . .
 
