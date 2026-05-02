@@ -49,11 +49,6 @@ const navItems = [
     href: "/admin/questions",
     icon: ListChecks,
   },
-  {
-    label: "PRD",
-    href: "/admin/prd",
-    icon: FileText,
-  },
 ]
 
 export function AdminLayout({ title, description, actions, children }) {
