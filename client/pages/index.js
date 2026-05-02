@@ -97,19 +97,49 @@ export default function HomePage() {
             <div className="flex-1 relative w-full aspect-square max-w-lg lg:max-w-none">
               <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-accent/20 rounded-3xl blur-3xl -z-10" />
               <div className="w-full h-full glass-card rounded-3xl p-6 shadow-2xl shadow-primary/10 flex flex-col gap-4 relative overflow-hidden">
-                <div className="w-full h-48 bg-gradient-to-br from-primary-container to-secondary rounded-xl flex items-center justify-center">
-                  <div className="text-white/80 font-heading text-xl font-semibold">📚 Grammar Lesson</div>
-                </div>
-                <div className="flex-1 flex flex-col gap-3">
-                  <div className="h-4 bg-surface-dim rounded w-3/4" />
-                  <div className="h-4 bg-surface-dim rounded w-1/2" />
-                  <div className="mt-auto flex justify-between items-center">
-                    <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 text-accent" />
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between text-xs font-heading text-primary uppercase tracking-[0.2em]">
+                    <span>Grammar Quiz</span>
+                    <span className="text-muted-foreground normal-case tracking-normal">Question 4 of 10</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <span className="font-heading text-lg text-foreground">Choose the correct form:</span>
+                    <span className="font-heading text-xl text-primary">
+                      &quot;I suggest that he ____ more often.&quot;
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-white/70 px-4 py-3 text-sm font-heading text-on-surface">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border/60 text-xs">
+                        A
+                      </span>
+                      <span>studies</span>
                     </div>
-                    <div className="h-2 w-32 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-accent w-2/3 rounded-full" />
+                    <div className="flex items-center gap-3 rounded-2xl border-2 border-primary bg-primary/5 px-4 py-3 text-sm font-heading text-primary shadow-md shadow-primary/10">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white text-xs">
+                        B
+                      </span>
+                      <span className="font-semibold">study</span>
                     </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-white/70 px-4 py-3 text-sm font-heading text-on-surface">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border/60 text-xs">
+                        C
+                      </span>
+                      <span>studied</span>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-white/70 px-4 py-3 text-sm font-heading text-on-surface">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border/60 text-xs">
+                        D
+                      </span>
+                      <span>will study</span>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="font-heading">Progress</span>
+                    <span className="font-heading text-accent">40% completed</span>
+                  </div>
+                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                    <div className="h-full w-2/5 bg-accent rounded-full" />
                   </div>
                 </div>
               </div>
