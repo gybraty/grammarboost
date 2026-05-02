@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { GalleryVerticalEndIcon } from "lucide-react"
+import { Logo } from "@/components/logo"
 import { api, getApiErrorMessage } from "@/lib/api"
 
 export function LoginForm({
@@ -40,7 +40,7 @@ export function LoginForm({
       if (user?.role === "admin") {
         router.push("/admin")
       } else {
-        router.push("/")
+        router.push("/lessons")
       }
     } catch (err) {
       setError(getApiErrorMessage(err))
@@ -54,13 +54,8 @@ export function LoginForm({
       <form onSubmit={handleSubmit}>
         <FieldGroup>
           <div className="flex flex-col items-center gap-2 text-center">
-            <a href="#" className="flex flex-col items-center gap-2 font-medium">
-              <div className="flex size-8 items-center justify-center rounded-md">
-                <GalleryVerticalEndIcon className="size-6" />
-              </div>
-              <span className="sr-only">GrammarBoost</span>
-            </a>
-            <h1 className="text-xl font-bold">Welcome to GrammarBoost</h1>
+            <Logo size="lg" asLink={false} />
+            <h1 className="text-xl font-bold font-heading">Welcome Back</h1>
             <FieldDescription>
               Don&apos;t have an account? <Link href="/auth/signup">Register</Link>
             </FieldDescription>

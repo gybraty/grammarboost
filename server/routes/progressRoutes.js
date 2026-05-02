@@ -19,4 +19,20 @@ const router = express.Router();
  */
 router.get('/', requireAuth, progressController.getProgress);
 
+/**
+ * @openapi
+ * /api/progress/attempts:
+ *   get:
+ *     summary: Get detailed quiz attempt history
+ *     description: Returns all quiz attempts for the authenticated user with individual answers and question details.
+ *     tags:
+ *       - Progress
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of quiz attempts with answers
+ */
+router.get('/attempts', requireAuth, progressController.getAttempts);
+
 module.exports = router;

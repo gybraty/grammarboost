@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import Link from "next/link";
-import { GalleryVerticalEndIcon } from "lucide-react"
+import { Logo } from "@/components/logo"
+import { LEVELS, LEVEL_LABELS } from "@/lib/level-colors"
 import { api, getApiErrorMessage } from "@/lib/api"
 
 export function SignupForm({
@@ -26,6 +27,7 @@ export function SignupForm({
     email: "",
     password: "",
     displayName: "",
+    level: "",
   })
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -44,7 +46,7 @@ export function SignupForm({
       if (user?.role === "admin") {
         router.push("/admin")
       } else {
-        router.push("/")
+        router.push("/lessons")
       }
     } catch (err) {
       setError(getApiErrorMessage(err))
@@ -58,13 +60,8 @@ export function SignupForm({
       <form onSubmit={handleSubmit}>
         <FieldGroup>
           <div className="flex flex-col items-center gap-2 text-center">
-            <a href="#" className="flex flex-col items-center gap-2 font-medium">
-              <div className="flex size-8 items-center justify-center rounded-md">
-                <GalleryVerticalEndIcon className="size-6" />
-              </div>
-              <span className="sr-only">GrammarBoost</span>
-            </a>
-            <h1 className="text-xl font-bold">Welcome to GrammarBoost</h1>
+            <Logo size="lg" asLink={false} />
+            <h1 className="text-xl font-bold font-heading">Create Your Account</h1>
             <FieldDescription>
               Already have an account? <Link href="/auth/login">Sign in</Link>
             </FieldDescription>
@@ -106,6 +103,22 @@ export function SignupForm({
               onChange={handleChange("displayName")}
               required
             />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="level">Your Level (optional)</FieldLabel>
+            <select
+              id="level"
+              value={formData.level}
+              onChange={handleChange("level")}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">Select your level</option>
+              {LEVELS.map((lvl) => (
+                <option key={lvl} value={lvl}>
+                  {lvl} — {LEVEL_LABELS[lvl]}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field>
             <Button type="submit" disabled={isSubmitting}>
