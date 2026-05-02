@@ -6,6 +6,7 @@ import useSWR from "swr"
 import { LearnerLayout } from "@/components/learner-layout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -56,6 +57,9 @@ export default function QuizPage() {
   const [results, setResults] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const isAnswerProvided = (value) =>
+    typeof value === "string" ? value.trim().length > 0 : value !== undefined
+
   // Auth guard
   if (!authLoading && !user) {
     return (
@@ -93,7 +97,7 @@ export default function QuizPage() {
         <div className="px-6 max-w-2xl mx-auto mt-8">
           <div className="glass-card rounded-2xl p-12 text-center flex flex-col items-center gap-4">
             <h2 className="font-heading text-2xl font-semibold text-foreground">No Questions Available</h2>
-            <p className="text-on-surface-variant">This lesson doesn't have quiz questions yet.</p>
+            <p className="text-on-surface-variant">This lesson doesn&apos;t have quiz questions yet.</p>
             <Button asChild variant="outline">
               <Link href={`/lessons/${slug}`}>Back to Lesson</Link>
             </Button>
@@ -105,8 +109,18 @@ export default function QuizPage() {
 
   const currentQuestion = questions[currentIndex]
   const progressPercent = ((currentIndex + 1) / questions.length) * 100
-  const answeredCount = questions.filter((q) => answers[q.id] !== undefined).length
+  const answeredCount = questions.filter((q) =>
+    isAnswerProvided(answers[q.id])
+  ).length
   const allAnswered = answeredCount === questions.length
+
+  const hasBlank =
+    currentQuestion?.type === "fill-in-the-blank" &&
+    currentQuestion?.prompt?.includes("_")
+  const [promptBefore, ...promptAfterParts] = hasBlank
+    ? currentQuestion.prompt.split(/_+/)
+    : [currentQuestion?.prompt]
+  const promptAfter = promptAfterParts.join("")
 
   const handleSelectAnswer = (questionId, answer) => {
     setAnswers((prev) => ({ ...prev, [questionId]: answer }))
@@ -333,37 +347,68 @@ export default function QuizPage() {
             )}
 
             <h2 className="font-heading text-xl font-semibold text-foreground mb-6">
-              {currentQuestion.prompt}
+              {hasBlank ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  <span>{promptBefore}</span>
+                  <Input
+                    value={answers[currentQuestion.id] || ""}
+                    onChange={(event) =>
+                      handleSelectAnswer(currentQuestion.id, event.target.value)
+                    }
+                    placeholder="Type your answer"
+                    className="w-40"
+                  />
+                  <span>{promptAfter}</span>
+                </span>
+              ) : (
+                currentQuestion.prompt
+              )}
             </h2>
 
             {/* Answer Choices */}
-            <div className="flex flex-col gap-3">
-              {currentQuestion.choices?.map((choice, i) => {
-                const isSelected = answers[currentQuestion.id] === choice
-                return (
-                  <button
-                    key={i}
-                    onClick={() => handleSelectAnswer(currentQuestion.id, choice)}
-                    className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
-                      isSelected
-                        ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
-                        : "border-border bg-white/50 hover:border-primary/50 hover:bg-surface-container"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                        isSelected ? "border-primary bg-primary" : "border-muted-foreground"
-                      }`}>
-                        {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+            {currentQuestion.type === "multiple-choice" && (
+              <div className="flex flex-col gap-3">
+                {currentQuestion.choices?.map((choice, i) => {
+                  const isSelected = answers[currentQuestion.id] === choice
+                  return (
+                    <button
+                      key={i}
+                      onClick={() =>
+                        handleSelectAnswer(currentQuestion.id, choice)
+                      }
+                      className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
+                        isSelected
+                          ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
+                          : "border-border bg-white/50 hover:border-primary/50 hover:bg-surface-container"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                            isSelected
+                              ? "border-primary bg-primary"
+                              : "border-muted-foreground"
+                          }`}
+                        >
+                          {isSelected && (
+                            <div className="w-2 h-2 rounded-full bg-white" />
+                          )}
+                        </div>
+                        <span
+                          className={`text-sm ${
+                            isSelected
+                              ? "text-primary font-medium"
+                              : "text-on-surface"
+                          }`}
+                        >
+                          {choice}
+                        </span>
                       </div>
-                      <span className={`text-sm ${isSelected ? "text-primary font-medium" : "text-on-surface"}`}>
-                        {choice}
-                      </span>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Navigation */}
@@ -392,7 +437,7 @@ export default function QuizPage() {
             ) : (
               <Button
                 onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
-                disabled={!answers[currentQuestion.id]}
+                disabled={!isAnswerProvided(answers[currentQuestion.id])}
                 className="font-heading text-sm"
               >
                 Next <ChevronRight className="ml-1 h-4 w-4" />

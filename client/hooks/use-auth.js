@@ -1,7 +1,17 @@
 import useSWR from "swr"
 import { api } from "@/lib/api"
 
-const fetcher = (url) => api.get(url).then((res) => res.data.data)
+const fetcher = async (url) => {
+  try {
+    const response = await api.get(url)
+    return response.data.data
+  } catch (error) {
+    if (error?.response?.status === 401) {
+      return null
+    }
+    throw error
+  }
+}
 
 export const useAuth = () => {
   const shouldFetch = typeof window !== "undefined"

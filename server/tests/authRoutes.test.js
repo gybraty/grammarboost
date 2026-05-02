@@ -34,5 +34,11 @@ describe('Auth routes', () => {
     const refreshRes = await agent.post('/api/auth/refresh');
     expect(refreshRes.status).toBe(200);
     expect(refreshRes.body.data.email).toBe(email);
+    expect(refreshRes.headers['set-cookie']).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/accessToken=/),
+        expect.stringMatching(/refreshToken=/),
+      ])
+    );
   });
 });

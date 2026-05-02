@@ -43,6 +43,29 @@ export default function ProgressPage() {
     fetcher
   )
 
+  // Compute stats from LessonProgress data
+  // API shape: { lastScore, bestScore, attemptsCount, status, lesson: { title, level, slug } }
+  const stats = useMemo(() => {
+    if (!progress) return null
+
+    const items = Array.isArray(progress) ? progress : []
+    const completedLessons = items.filter((p) => p.status === "completed").length
+    const scores = items.map((p) => p.lastScore ?? 0)
+    const avgScore = scores.length
+      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+      : 0
+    const topScore = items.reduce((max, p) => Math.max(max, p.bestScore ?? 0), 0)
+    const levels = [...new Set(items.map((p) => p.lesson?.level).filter(Boolean))]
+
+    return {
+      completedLessons,
+      avgScore,
+      bestScore: Math.round(topScore),
+      levelsCount: levels.length,
+      items,
+    }
+  }, [progress])
+
   // Auth guard
   if (!authLoading && !user) {
     return (
@@ -60,21 +83,6 @@ export default function ProgressPage() {
       </LearnerLayout>
     )
   }
-
-  // Compute stats from LessonProgress data
-  // API shape: { lastScore, bestScore, attemptsCount, status, lesson: { title, level, slug } }
-  const stats = useMemo(() => {
-    if (!progress) return null
-
-    const items = Array.isArray(progress) ? progress : []
-    const completedLessons = items.filter((p) => p.status === "completed").length
-    const scores = items.map((p) => p.lastScore ?? 0)
-    const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
-    const topScore = items.reduce((max, p) => Math.max(max, p.bestScore ?? 0), 0)
-    const levels = [...new Set(items.map((p) => p.lesson?.level).filter(Boolean))]
-
-    return { completedLessons, avgScore, bestScore: Math.round(topScore), levelsCount: levels.length, items }
-  }, [progress])
 
   if (isLoading || authLoading) {
     return (

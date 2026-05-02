@@ -105,6 +105,9 @@ export function AdminLayout({ title, description, actions, children }) {
         <SidebarFooter className="gap-3 px-3 pb-4">
           <Separator />
           <Button variant="outline" size="sm" asChild>
+            <Link href="/lessons">Browse lessons</Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
             <Link href="/auth/login">Switch account</Link>
           </Button>
         </SidebarFooter>

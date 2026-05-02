@@ -51,7 +51,7 @@ export default function LessonDetailPage() {
           <div className="glass-card rounded-2xl p-12 text-center flex flex-col items-center gap-4">
             <FileText className="h-12 w-12 text-muted-foreground" />
             <h2 className="font-heading text-2xl font-semibold text-foreground">Lesson not found</h2>
-            <p className="text-on-surface-variant">The lesson you're looking for doesn't exist or has been removed.</p>
+            <p className="text-on-surface-variant">The lesson you&apos;re looking for doesn&apos;t exist or has been removed.</p>
             <Button asChild>
               <Link href="/lessons">Back to Lessons</Link>
             </Button>

@@ -32,7 +32,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { api, getApiErrorMessage } from "@/lib/api"
 import { toast } from "sonner"
-import { Pencil, Trash } from "lucide-react"
+import { Pencil, Sparkles, Trash } from "lucide-react"
 
 const fetcher = (url) => api.get(url).then((res) => res.data.data)
 
@@ -41,6 +41,18 @@ const questionTypeOptions = [
   { label: "Fill in the Blank", value: "fill-in-the-blank" },
   { label: "Short Answer", value: "short-answer" },
 ]
+
+const questionTypeSelectOptions = questionTypeOptions.map((type) => {
+  if (type.value === "short-answer") {
+    return {
+      ...type,
+      disabled: true,
+      helper: "Coming soon",
+      icon: Sparkles,
+    }
+  }
+  return type
+})
 
 const difficultyFilterOptions = [
   { label: "All levels", value: "all" },
@@ -214,9 +226,8 @@ export default function QuestionsManagementPage() {
       correctAnswers: splitLines(values.correctAnswers),
     }
 
-    const choices = splitLines(values.choices || "")
-    if (choices.length > 0 && values.type !== "short-answer") {
-      payload.choices = choices
+    if (values.type === "multiple-choice") {
+      payload.choices = splitLines(values.choices || "")
     }
 
     try {
@@ -259,7 +270,6 @@ export default function QuestionsManagementPage() {
     "She ___ to the office every morning."
   const previewCorrect =
     splitLines(useWatch({ control, name: "correctAnswers" }) || "")[0] || "goes"
-  const previewChoices = splitLines(useWatch({ control, name: "choices" }) || "")
 
   return (
     <AdminLayout
@@ -474,11 +484,27 @@ export default function QuestionsManagementPage() {
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent position="popper" align="start">
-                          {questionTypeOptions.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              {type.label}
-                            </SelectItem>
-                          ))}
+                          {questionTypeSelectOptions.map((type) => {
+                            const Icon = type.icon
+                            return (
+                              <SelectItem
+                                key={type.value}
+                                value={type.value}
+                                disabled={type.disabled}>
+                                <span className="flex items-center gap-2">
+                                  {Icon && (
+                                    <Icon className="size-4 text-muted-foreground" />
+                                  )}
+                                  <span>{type.label}</span>
+                                  {type.helper && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {type.helper}
+                                    </span>
+                                  )}
+                                </span>
+                              </SelectItem>
+                            )
+                          })}
                         </SelectContent>
                       </Select>
                     )}
@@ -497,13 +523,9 @@ export default function QuestionsManagementPage() {
                     </p>
                   )}
                 </div>
-                {selectedType !== "short-answer" && (
+                {selectedType === "multiple-choice" && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      {selectedType === "multiple-choice"
-                        ? "Answer options"
-                        : "Distractor options (optional)"}
-                    </label>
+                    <label className="text-sm font-medium">Answer options</label>
                     <Textarea
                       rows={3}
                       placeholder="Option A\nOption B\nOption C"
@@ -684,16 +706,6 @@ export default function QuestionsManagementPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Distractor options
-                  </label>
-                  <Textarea
-                    rows={3}
-                    placeholder="go\nwent\ngoing"
-                    {...register("choices")}
-                  />
-                </div>
-                <div className="space-y-2">
                   <label className="text-sm font-medium">Explanation</label>
                   <Textarea
                     rows={3}
@@ -743,14 +755,6 @@ export default function QuestionsManagementPage() {
                   <div className="flex items-center justify-between rounded-lg border px-3 py-2">
                     <span>Correct answer</span>
                     <Badge variant="outline">{previewCorrect}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                    <span>Distractors</span>
-                    <Badge variant="secondary">
-                      {previewChoices.length > 0
-                        ? previewChoices.join(", ")
-                        : "—"}
-                    </Badge>
                   </div>
                 </div>
               </CardContent>
