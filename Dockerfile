@@ -6,7 +6,7 @@ COPY package.json package-lock.json ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
 
-RUN npm install
+RUN npm ci
 
 COPY . .
 
@@ -22,7 +22,7 @@ COPY package.json package-lock.json ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
 
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 COPY server ./server
 
