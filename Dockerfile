@@ -8,6 +8,9 @@ COPY server/package.json ./server/
 
 RUN npm ci
 
+RUN find /app/node_modules -path "*/lightningcss-linux-x64-gnu/lightningcss.linux-x64-gnu.node" \
+    -exec cp {} /app/client/node_modules/lightningcss/ \; 2>/dev/null || true
+
 COPY . .
 
 RUN npm run build --workspace=client
