@@ -8,8 +8,11 @@ COPY server/package.json ./server/
 
 RUN npm ci
 
-RUN find /app/node_modules -path "*/lightningcss-linux-x64-gnu/lightningcss.linux-x64-gnu.node" \
-    -exec cp {} /app/client/node_modules/lightningcss/ \; 2>/dev/null || true
+RUN LCSS_VER=$(node -p "require('./client/node_modules/lightningcss/package.json').version") && \
+    npm pack "lightningcss-linux-x64-gnu@${LCSS_VER}" --pack-destination /tmp && \
+    mkdir -p /app/client/node_modules/lightningcss-linux-x64-gnu && \
+    tar xzf "/tmp/lightningcss-linux-x64-gnu-${LCSS_VER}.tgz" --strip-components=1 \
+        -C /app/client/node_modules/lightningcss-linux-x64-gnu
 
 COPY . .
 
