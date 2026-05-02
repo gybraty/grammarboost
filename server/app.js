@@ -63,7 +63,15 @@ app.use('/api/questions', questionRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/tags', tagRoutes);
 
-app.use(notFound);
+app.use('/api', notFound);
+
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve(__dirname, 'public', 'index.html'));
+});
+
 app.use(errorHandler);
 
 module.exports = app;
